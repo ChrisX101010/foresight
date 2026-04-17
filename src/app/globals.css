@@ -1,0 +1,142 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ────────────────────────────────────────────────────────────────────
+   FORESIGHT global styles.
+   Aesthetic direction: "plasma on ink" — deliberately *not* the purple
+   gradient every other AI-generated Web3 app ends up with. Near-black
+   background, characterful serif display type, toxic-lime accent.
+   Inspired by trading terminals (Bloomberg) crossed with editorial mags.
+   ──────────────────────────────────────────────────────────────────── */
+
+:root {
+  --font-display: 'Instrument Serif', 'Times New Roman', serif;
+  --font-sans: 'Inter Tight', system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', 'Courier New', monospace;
+}
+
+html,
+body {
+  background: #0A0B0F;
+  color: #F4F1EA;
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+/* Grid backdrop — subtle, decorative */
+.grid-bg {
+  background-image:
+    linear-gradient(to right, rgba(255, 255, 255, 0.035) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(255, 255, 255, 0.035) 1px, transparent 1px);
+  background-size: 32px 32px;
+}
+
+/* Noise overlay — adds film-grain texture without an image file */
+.noise::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.04;
+  z-index: 1;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='200' height='200'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
+}
+
+/* Radial plasma glow */
+.plasma-glow {
+  background: radial-gradient(
+    ellipse at 50% 0%,
+    rgba(198, 255, 61, 0.12) 0%,
+    rgba(198, 255, 61, 0.04) 30%,
+    transparent 60%
+  );
+}
+
+/* Wallet adapter override — its default purple clashes with our palette */
+.wallet-adapter-button-trigger {
+  background-color: #C6FF3D !important;
+  color: #0A0B0F !important;
+  font-family: var(--font-sans) !important;
+  font-weight: 600 !important;
+  letter-spacing: 0.01em;
+  border-radius: 999px !important;
+  height: 40px !important;
+  padding: 0 20px !important;
+  transition: background-color 120ms ease;
+}
+
+.wallet-adapter-button-trigger:hover {
+  background-color: #A8DB2D !important;
+}
+
+/* Modal wrapper — dark card */
+.wallet-adapter-modal-wrapper {
+  background: #10121A !important;
+  border: 1px solid #2A2F45 !important;
+  border-radius: 16px !important;
+}
+
+.wallet-adapter-modal-title {
+  color: #F4F1EA !important;
+  font-family: var(--font-display) !important;
+  font-weight: 400 !important;
+  font-size: 22px !important;
+}
+
+/* Wallet list items inside the modal — subtle, not neon */
+.wallet-adapter-modal-list .wallet-adapter-button {
+  background-color: #171A26 !important;
+  color: #F4F1EA !important;
+  font-family: var(--font-sans) !important;
+  font-weight: 500 !important;
+  border-radius: 12px !important;
+  padding: 14px 16px !important;
+  height: auto !important;
+  transition: background-color 120ms ease, border-color 120ms ease;
+  border: 1px solid #2A2F45 !important;
+}
+
+.wallet-adapter-modal-list .wallet-adapter-button:hover {
+  background-color: #1F2335 !important;
+  border-color: #C6FF3D !important;
+}
+
+/* Detected badge color */
+.wallet-adapter-modal-list .wallet-adapter-button .wallet-adapter-button-end-icon,
+.wallet-adapter-modal-list-more {
+  color: #C6FF3D !important;
+}
+
+.wallet-adapter-modal-list-more {
+  font-family: var(--font-sans) !important;
+  font-size: 13px !important;
+}
+
+/* Scrollbars — kept on-brand */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-track {
+  background: #10121A;
+}
+::-webkit-scrollbar-thumb {
+  background: #2A2F45;
+  border-radius: 6px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #3A4060;
+}
+
+/* Utility — display serif feel */
+.display {
+  font-family: var(--font-display);
+  font-weight: 400;
+  letter-spacing: -0.01em;
+}
+
+.mono {
+  font-family: var(--font-mono);
+}
