@@ -210,8 +210,8 @@ Solo-built for the Solana Frontier Hackathon, Eitherway bounty track.
 
 ## Links
 
-- Live app: _(deploy link, TBD)_
-- Demo video: _(video link, TBD)_
+- Live app: https://foresight-beryl.vercel.app/_
+- Demo video: https://www.loom.com/share/739951a3863c4c149830c41ec87bd3b0
 - Superteam Earn listing: https://superteam.fun/earn/listing/build-a-live-dapp-with-solflare-kamino-dflow-or-quicknode-with-eitherway-app
 - DFlow docs: https://pond.dflow.net
 - Kamino docs: https://docs.kamino.finance
