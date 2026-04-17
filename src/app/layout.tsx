@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import './globals.css';
 import { Providers } from '@/components/Providers';
+import { CursorGlow } from '@/components/CursorGlow';
 
 export const metadata: Metadata = {
   title: 'FORESIGHT — Earn while you wait for the future',
@@ -27,6 +28,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         />
       </head>
       <body className="noise">
+	<CursorGlow />
         <Providers>{children}</Providers>
       </body>
     </html>

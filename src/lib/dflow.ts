@@ -5,30 +5,11 @@
 //   - https://pond.dflow.net/build/endpoints
 //   - https://pond.dflow.net/build/introduction
 //   - https://www.quicknode.com/guides/solana-development/3rd-party-integrations/kalshi-prediction-markets-with-dflow
-//
-// Key facts that shape this file:
-//   - Dev endpoints are key-less and open:
-//       Metadata: https://dev-prediction-markets-api.dflow.net
-//       Trade:    https://dev-quote-api.dflow.net
-//     Production requires x-api-key header from DFlow.
-//   - Data is hierarchical: Series → Event → Market.
-//   - Each Market has an `accounts` map keyed by settlement mint.
-//     The yesMint/noMint live INSIDE accounts[USDC_MINT], not at market root.
-//   - Prices are strings: "0.7700". Needs Number() casting.
-//   - /order is a single GET call with query params. It does quote AND
-//     tx-build in one shot — no separate /quote call.
-//   - /order-status requires BOTH signature and lastValidBlockHeight.
-//   - KYC via DFlow Proof is mandatory before real trading works.
 // ────────────────────────────────────────────────────────────────────────
 
 import { jsonFetch } from './utils';
 import { USDC_MINT } from './constants';
 import type { PredictionMarket, MarketCategory } from '@/types';
-
-// ─── Endpoint resolution ─────────────────────────────────────────────────
-// Metadata goes through /api/dflow proxy so x-api-key stays server-side.
-// Trade API goes direct from the browser — /order quotes are cheap and
-// key-less on dev.
 
 export const DFLOW_METADATA_PATH = '/api/dflow';
 export const DFLOW_TRADE_BASE =
@@ -79,7 +60,7 @@ interface RawEventsResponse {
 export interface DflowOrderResponse {
   outAmount: string;
   executionMode: 'sync' | 'async';
-  transaction: string;       // base64 VersionedTransaction
+  transaction: string;
   lastValidBlockHeight: number;
   revertMint?: string;
 }
@@ -88,6 +69,46 @@ export interface DflowOrderStatus {
   status: 'pending' | 'expired' | 'failed' | 'open' | 'pendingClose' | 'closed';
   outAmount: number;
   reverts?: { signature: string }[];
+}
+
+// ─── Error handling — friendly DFlow error surfacing ─────────────────────
+
+export class DflowError extends Error {
+  constructor(
+    public readonly code: string,
+    message: string,
+    public readonly requiresKyc: boolean = false
+  ) {
+    super(message);
+    this.name = 'DflowError';
+  }
+}
+
+async function dflowFetch<T>(url: string): Promise<T> {
+  try {
+    return await jsonFetch<T>(url);
+  } catch (err) {
+    const raw = err instanceof Error ? err.message : String(err);
+    const match = raw.match(/\{.*\}/);
+    if (match) {
+      try {
+        const body = JSON.parse(match[0]);
+        if (body.code === 'unverified_wallet_not_allowed') {
+          throw new DflowError(
+            body.code,
+            'Kalshi KYC required. Verify your wallet at dflow.net/proof to trade.',
+            true
+          );
+        }
+        if (body.msg) {
+          throw new DflowError(body.code ?? 'dflow_error', body.msg);
+        }
+      } catch (parseErr) {
+        if (parseErr instanceof DflowError) throw parseErr;
+      }
+    }
+    throw err;
+  }
 }
 
 // ─── Category inference from series ticker ──────────────────────────────
@@ -113,8 +134,6 @@ function mapMarket(
 ): PredictionMarket | null {
   const usdc = USDC_MINT.toBase58();
   const acct = raw.accounts[usdc] ?? Object.values(raw.accounts)[0];
-  // Skip markets where the USDC account isn't initialized — users can't trade
-  // these, and showing them would produce confusing errors.
   if (!acct || acct.isInitialized === false) return null;
 
   const yesAsk = raw.yesAsk ? Number(raw.yesAsk) : 0;
@@ -134,7 +153,7 @@ function mapMarket(
     settlementMint: usdc,
     yesPrice: yesAsk,
     noPrice: noAsk || (yesAsk ? 1 - yesAsk : 0),
-    volume24h: 0,   // not exposed on /events endpoint
+    volume24h: 0,
     openInterest: 0,
     status: raw.status === 'finalized' || raw.status === 'determined'
       ? 'resolved'
@@ -149,8 +168,6 @@ function mapMarket(
 
 // ─── Market discovery ────────────────────────────────────────────────────
 
-// Featured series give the landing page a curated spread across categories.
-// For production you'd fetch this dynamically from user activity.
 const FEATURED_SERIES = ['KXEPLGAME', 'KXBTCD', 'KXFED', 'KXNBAGAME'];
 
 export async function fetchTrendingMarkets(limit = 24): Promise<PredictionMarket[]> {
@@ -190,10 +207,6 @@ export async function fetchTrendingMarkets(limit = 24): Promise<PredictionMarket
 export async function fetchMarketByTicker(
   ticker: string
 ): Promise<PredictionMarket | null> {
-  // Try multiple lookup strategies: the DFlow Metadata API is hierarchical
-  // (Series → Event → Market), and market ticker shapes vary by series.
-  // Some have nested segments (KXEPLGAME-26FEB18WOLARS-ARS), others are
-  // flat (KXBTCD-26APR17-5PM). Try progressively broader event tickers.
   const candidates: string[] = [ticker];
   const parts = ticker.split('-');
   for (let i = parts.length - 1; i > 0; i--) {
@@ -214,12 +227,9 @@ export async function fetchMarketByTicker(
           if (m.ticker === ticker) return mapMarket(m, ev);
         }
       }
-    } catch (err) {
-      // Try next candidate silently.
-    }
+    } catch {}
   }
 
-  // Last resort: scan the trending set we already fetched client-side.
   const trending = await fetchTrendingMarkets(48);
   const hit = trending.find((m) => m.ticker === ticker);
   if (hit) return hit;
@@ -230,13 +240,6 @@ export async function fetchMarketByTicker(
 
 // ─── Trading ─────────────────────────────────────────────────────────────
 
-/**
- * Request an order from DFlow Trade API.
- * Single GET call returns base64 tx + expected out amount. No separate
- * quote step needed.
- *
- * amountUsdc → USDC to spend (UI-facing units, e.g. 1.0 = $1.00).
- */
 export async function requestBuyOrder(params: {
   outcomeMint: string;
   amountUsdc: number;
@@ -244,7 +247,7 @@ export async function requestBuyOrder(params: {
   slippageBps?: number | 'auto';
   priorityFeeLamports?: number;
 }): Promise<DflowOrderResponse> {
-  const amountBaseUnits = Math.floor(params.amountUsdc * 1_000_000); // USDC has 6 decimals
+  const amountBaseUnits = Math.floor(params.amountUsdc * 1_000_000);
 
   const qs = new URLSearchParams({
     inputMint: USDC_MINT.toBase58(),
@@ -256,16 +259,11 @@ export async function requestBuyOrder(params: {
     prioritizationFeeLamports: String(params.priorityFeeLamports ?? 5000),
   });
 
-  return jsonFetch<DflowOrderResponse>(
+  return dflowFetch<DflowOrderResponse>(
     `${DFLOW_TRADE_BASE}/order?${qs.toString()}`
   );
 }
 
-/**
- * Poll DFlow for fill status. Async CLP orders confirm on-chain fast but
- * the actual outcome-token mint happens when LPs fill the intent — usually
- * 1–5 seconds after confirmation.
- */
 export async function getOrderStatus(
   signature: string,
   lastValidBlockHeight: number
@@ -274,14 +272,12 @@ export async function getOrderStatus(
     signature,
     lastValidBlockHeight: String(lastValidBlockHeight),
   });
-  return jsonFetch<DflowOrderStatus>(
+  return dflowFetch<DflowOrderStatus>(
     `${DFLOW_TRADE_BASE}/order-status?${qs.toString()}`
   );
 }
 
 // ─── Fallback demo data ──────────────────────────────────────────────────
-// These mints are placeholders. Buy attempts will fail at /order, which is
-// correct — we never want to silently create invalid SPL tokens.
 
 export const FALLBACK_MARKETS: PredictionMarket[] = [
   {

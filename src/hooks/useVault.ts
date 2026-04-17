@@ -2,13 +2,7 @@
 
 // ────────────────────────────────────────────────────────────────────────
 // useVault — the orchestration hook.
-//
-// Combines:
-//   • DFlow Trade API (single /order call → signed tx for outcome mint)
-//   • Kamino klend-sdk (deposit ixs for the yield leg)
-//
-// For this MVP the two legs ship as sequential transactions. A v1.1 with
-// Jito bundles would make them atomic — see roadmap in pitch/architecture.md.
+// Combines DFlow outcome-token mint + Kamino USDC deposit into one flow.
 // ────────────────────────────────────────────────────────────────────────
 
 import { useCallback, useEffect, useState } from 'react';
@@ -22,6 +16,7 @@ import { toast } from 'sonner';
 import {
   requestBuyOrder,
   getOrderStatus,
+  DflowError,
 } from '@/lib/dflow';
 import { createKaminoClient, FALLBACK_YIELD } from '@/lib/kamino';
 import {
@@ -91,7 +86,6 @@ export function useVault() {
     yieldInfo: FALLBACK_YIELD,
   });
 
-  // ─── Live Kamino APY ping (once per minute) ────────────────────────
   useEffect(() => {
     let cancelled = false;
     let timer: ReturnType<typeof setInterval> | null = null;
@@ -113,8 +107,6 @@ export function useVault() {
       if (timer) clearInterval(timer);
     };
   }, [connection]);
-
-  // ─── Deposit orchestration ─────────────────────────────────────────
 
   const deposit = useCallback(
     async (params: DepositParams): Promise<DepositResult | null> => {
@@ -138,7 +130,6 @@ export function useVault() {
         const outcomeMint =
           params.side === 'yes' ? params.market.yesMint : params.market.noMint;
 
-        // ─── 1. One DFlow call: quote + tx build ─────────────────────
         const order = await requestBuyOrder({
           outcomeMint,
           amountUsdc: params.predictionBudgetUsd,
@@ -149,7 +140,6 @@ export function useVault() {
 
         setState((s) => ({ ...s, currentStep: 'signing-predict' }));
 
-        // ─── 2. Deserialize, sign, send ──────────────────────────────
         const orderTx = VersionedTransaction.deserialize(
           Uint8Array.from(Buffer.from(order.transaction, 'base64'))
         );
@@ -162,7 +152,6 @@ export function useVault() {
         setState((s) => ({ ...s, currentStep: 'confirming-predict' }));
         await connection.confirmTransaction(predictionSig, 'confirmed');
 
-        // ─── 3. For async CLP orders, poll until filled ──────────────
         let outcomeTokens = 0;
         if (order.executionMode === 'async') {
           setState((s) => ({ ...s, currentStep: 'waiting-fill' }));
@@ -184,7 +173,6 @@ export function useVault() {
           outcomeTokens = Number(order.outAmount) / 1_000_000;
         }
 
-        // ─── 4. Sweep remainder into Kamino ──────────────────────────
         let yieldSig: string | null = null;
         let yieldDeposited = 0;
 
@@ -220,14 +208,28 @@ export function useVault() {
 
         return { predictionSig, yieldSig, outcomeTokens, yieldDeposited };
       } catch (err) {
+        const isKycError = err instanceof DflowError && err.requiresKyc;
         const msg = err instanceof Error ? err.message : String(err);
+
         setState((s) => ({
           ...s,
           isDepositing: false,
           currentStep: 'error',
           error: msg,
         }));
-        toast.error(msg);
+
+        if (isKycError) {
+          toast.error('Kalshi KYC required for this wallet', {
+            description: 'Verify once at dflow.net/proof — takes a few minutes.',
+            action: {
+              label: 'Verify now',
+              onClick: () => window.open('https://dflow.net/proof', '_blank'),
+            },
+            duration: 10000,
+          });
+        } else {
+          toast.error(msg);
+        }
         return null;
       }
     },
