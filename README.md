@@ -24,18 +24,6 @@ It's the first working product that treats prediction markets as composable DeFi
 
 ---
 
-## Why this wins
-
-| | |
-|---|---|
-| **Rides the hottest narrative** | DFlow + Kalshi launched Dec 2025 with a $2M Kalshi Grants program. 100+ integrations are being shipped. Judges are actively looking here. |
-| **Two sponsors, one product** | DFlow (prediction markets) *and* Kamino (yield) — plus Solflare wallet adapter and QuickNode-ready RPC config. Four of four bounty sponsors touched. |
-| **Real composability** | DFlow's founder Nitesh Nath said on stage: "prediction tokens should be borrowed, lent, used as collateral." Foresight ships the simplest version of that thesis — with a roadmap to all three. |
-| **Eitherway story works** | Scaffolded from a single Eitherway prompt (see `/pitch/eitherway-prompt.md`), then extended into a production-grade app. Exactly the narrative the bounty was created to reward. |
-| **Demo-able in 90 seconds** | Connect wallet → pick market → slide allocation → open position → see dual-leg P&L. No paper-app hand-waving. |
-
----
-
 ## Architecture
 
 ```
