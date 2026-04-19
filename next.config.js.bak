@@ -1,7 +1,5 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  typescript: { ignoreBuildErrors: true },
-  eslint: { ignoreDuringBuilds: true },
   reactStrictMode: true,
   // Wallet-adapter and Solana libs ship CJS + use node built-ins. Keep them out of the
   // Edge runtime bundle and let the browser polyfills kick in only where needed.

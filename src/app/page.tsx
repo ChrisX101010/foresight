@@ -25,8 +25,8 @@ export default function Landing() {
       <Nav />
 
       {/* ─── HERO ───────────────────────────────────────────────────── */}
-      <section className="relative overflow-hidden grid-bg plasma-glow">
-        <div className="mx-auto max-w-7xl px-6 pt-20 pb-24 md:pt-32 md:pb-36 relative">
+      <section className="relative overflow-hidden plasma-glow">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 pt-20 pb-20 md:pt-32 md:pb-36 relative">
           {/* top marquee — feels like a bloomberg ticker */}
           <div className="absolute top-4 left-0 right-0 overflow-hidden border-y border-ink-600 bg-ink-900/50 py-2">
             <div className="flex animate-marquee whitespace-nowrap text-xs mono text-fog gap-10">
@@ -250,9 +250,9 @@ export default function Landing() {
             Foresight · Solana Frontier Hackathon · 2026
           </div>
           <div className="flex items-center gap-4">
-            <a href="https://github.com/" className="hover:text-chalk transition-colors">GitHub</a>
+            <a href="https://github.com/ChrisX101010/foresight" target="_blank" rel="noopener noreferrer" className="hover:text-chalk transition-colors">GitHub</a>
             <a href="/docs" className="hover:text-chalk transition-colors">Docs</a>
-            <a href="#" className="hover:text-chalk transition-colors">Demo video</a>
+            <a href="https://superteam.fun/earn/listing/build-a-live-dapp-with-solflare-kamino-dflow-or-quicknode-with-eitherway-app" target="_blank" rel="noopener noreferrer" className="hover:text-chalk transition-colors">Bounty</a>
           </div>
         </div>
       </footer>

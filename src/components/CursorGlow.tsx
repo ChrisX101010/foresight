@@ -1,65 +1,137 @@
 'use client';
 
 // ────────────────────────────────────────────────────────────────────────
-// Cursor-following plasma glow.
+// Cursor-following plasma glow — two layers.
 //
-// Uses requestAnimationFrame + CSS vars instead of React state so we don't
-// re-render on every pixel of mouse movement. The glow is a fixed-position
-// radial gradient that tracks the cursor via --mx/--my custom properties.
+// Desktop:
+//   • Outer glow: large, soft, slow-tracking, gently "breathes" (scales)
+//     so the static landing page still feels alive when the cursor is
+//     still.
+//   • Inner glow: smaller, tighter, fast-tracking — reads as a focused
+//     beam at the cursor tip.
 //
-// Only mounts on pages that opt in — avoids distracting the user on the
-// deposit flow or the docs page where they're focusing on content.
+// Touch / reduced-motion:
+//   • Disable cursor tracking entirely (would otherwise sit dead-center
+//     on phones). Fall back to a single ambient glow that slowly drifts,
+//     giving the landing page the same "plasma pulse" feel without the
+//     pointer dependence.
 // ────────────────────────────────────────────────────────────────────────
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 export function CursorGlow() {
-  const glowRef = useRef<HTMLDivElement>(null);
-  const targetPos = useRef({ x: 0, y: 0 });
-  const currentPos = useRef({ x: 0, y: 0 });
+  const outerRef = useRef<HTMLDivElement>(null);
+  const innerRef = useRef<HTMLDivElement>(null);
+
+  const outerTarget = useRef({ x: 0, y: 0 });
+  const outerCurrent = useRef({ x: 0, y: 0 });
+  const innerTarget = useRef({ x: 0, y: 0 });
+  const innerCurrent = useRef({ x: 0, y: 0 });
+
   const frameId = useRef<number | null>(null);
+  const breathStart = useRef<number>(0);
+
+  // Start false and promote on the client — avoids SSR/hydration mismatch.
+  const [isTouch, setIsTouch] = useState(false);
 
   useEffect(() => {
-    const el = glowRef.current;
-    if (!el) return;
+    const coarse = window.matchMedia('(pointer: coarse)').matches;
+    const reducedMotion = window.matchMedia(
+      '(prefers-reduced-motion: reduce)'
+    ).matches;
+    setIsTouch(coarse || reducedMotion);
+  }, []);
 
-    // Start at viewport center so the initial render has something visible.
-    targetPos.current = { x: window.innerWidth / 2, y: window.innerHeight / 2 };
-    currentPos.current = { ...targetPos.current };
+  useEffect(() => {
+    const outer = outerRef.current;
+    const inner = innerRef.current;
+    if (!outer) return;
+
+    const w = window.innerWidth;
+    const h = window.innerHeight;
+
+    outerTarget.current = { x: w / 2, y: h / 3 };
+    outerCurrent.current = { ...outerTarget.current };
+    innerTarget.current = { ...outerTarget.current };
+    innerCurrent.current = { ...outerTarget.current };
+    breathStart.current = performance.now();
 
     const handleMove = (e: MouseEvent) => {
-      targetPos.current = { x: e.clientX, y: e.clientY };
+      outerTarget.current = { x: e.clientX, y: e.clientY };
+      innerTarget.current = { x: e.clientX, y: e.clientY };
     };
 
-    const animate = () => {
-      // Smooth lerp — 0.12 feels snappy but not twitchy. Raise for snappier.
-      currentPos.current.x += (targetPos.current.x - currentPos.current.x) * 0.12;
-      currentPos.current.y += (targetPos.current.y - currentPos.current.y) * 0.12;
+    const ambientDrift = (t: number) => {
+      const cx = window.innerWidth / 2;
+      const cy = window.innerHeight / 3;
+      outerTarget.current = {
+        x: cx + Math.sin(t / 4200) * window.innerWidth * 0.15,
+        y: cy + Math.cos(t / 3800) * window.innerHeight * 0.08,
+      };
+    };
 
-      el.style.setProperty('--mx', `${currentPos.current.x}px`);
-      el.style.setProperty('--my', `${currentPos.current.y}px`);
+    const animate = (now: number) => {
+      if (isTouch) ambientDrift(now);
+
+      outerCurrent.current.x +=
+        (outerTarget.current.x - outerCurrent.current.x) * 0.06;
+      outerCurrent.current.y +=
+        (outerTarget.current.y - outerCurrent.current.y) * 0.06;
+
+      innerCurrent.current.x +=
+        (innerTarget.current.x - innerCurrent.current.x) * 0.22;
+      innerCurrent.current.y +=
+        (innerTarget.current.y - innerCurrent.current.y) * 0.22;
+
+      const elapsed = now - breathStart.current;
+      const breath = 1 + Math.sin(elapsed / 800) * 0.08;
+
+      outer.style.setProperty('--mx', `${outerCurrent.current.x}px`);
+      outer.style.setProperty('--my', `${outerCurrent.current.y}px`);
+      outer.style.setProperty('--breath', breath.toFixed(3));
+
+      if (inner) {
+        inner.style.setProperty('--mx', `${innerCurrent.current.x}px`);
+        inner.style.setProperty('--my', `${innerCurrent.current.y}px`);
+      }
 
       frameId.current = requestAnimationFrame(animate);
     };
 
-    window.addEventListener('mousemove', handleMove, { passive: true });
+    if (!isTouch) {
+      window.addEventListener('mousemove', handleMove, { passive: true });
+    }
     frameId.current = requestAnimationFrame(animate);
 
     return () => {
-      window.removeEventListener('mousemove', handleMove);
+      if (!isTouch) window.removeEventListener('mousemove', handleMove);
       if (frameId.current !== null) cancelAnimationFrame(frameId.current);
     };
-  }, []);
+  }, [isTouch]);
 
   return (
-    <div
-      ref={glowRef}
-      className="pointer-events-none fixed inset-0 z-0"
-      style={{
-        background:
-          'radial-gradient(600px circle at var(--mx) var(--my), rgba(198, 255, 61, 0.09), transparent 40%)',
-      }}
-      aria-hidden
-    />
+    <>
+      <div
+        ref={outerRef}
+        className="pointer-events-none fixed inset-0 z-0"
+        style={{
+          background:
+            'radial-gradient(calc(700px * var(--breath, 1)) circle at var(--mx) var(--my), rgba(198, 255, 61, 0.10), rgba(198, 255, 61, 0.03) 35%, transparent 60%)',
+        }}
+        aria-hidden
+      />
+      {!isTouch && (
+        <div
+          ref={innerRef}
+          className="pointer-events-none fixed inset-0 z-0"
+          style={{
+            background:
+              'radial-gradient(180px circle at var(--mx) var(--my), rgba(198, 255, 61, 0.14), rgba(198, 255, 61, 0.05) 30%, transparent 55%)',
+            mixBlendMode: 'screen',
+          }}
+          aria-hidden
+        />
+      )}
+    </>
   );
 }
