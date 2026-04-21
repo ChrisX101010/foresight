@@ -3,8 +3,6 @@ const nextConfig = {
   typescript: { ignoreBuildErrors: true },
   eslint: { ignoreDuringBuilds: true },
   reactStrictMode: true,
-  // Wallet-adapter and Solana libs ship CJS + use node built-ins. Keep them out of the
-  // Edge runtime bundle and let the browser polyfills kick in only where needed.
   webpack: (config, { isServer }) => {
     if (!isServer) {
       config.resolve.fallback = {
@@ -13,13 +11,11 @@ const nextConfig = {
         net: false,
         tls: false,
         crypto: false,
+        'pino-pretty': false,
       };
     }
     return config;
   },
-  // Note: DFlow requests go through the /api/dflow/[...path] route handler
-  // (src/app/api/dflow/[...path]/route.ts) rather than a rewrite, because
-  // we inject the x-api-key header server-side. Leaving this here for docs.
   transpilePackages: [
     '@solana/wallet-adapter-base',
     '@solana/wallet-adapter-react',
@@ -28,5 +24,4 @@ const nextConfig = {
     '@kamino-finance/klend-sdk',
   ],
 };
-
 module.exports = nextConfig;

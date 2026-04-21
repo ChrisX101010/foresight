@@ -5,11 +5,13 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import dynamic from 'next/dynamic';
 import { Menu, X } from 'lucide-react';
-const WalletMultiButton = dynamic(
-  () => import('@solana/wallet-adapter-react-ui').then((m) => m.WalletMultiButton),
-  { ssr: false }
-);
 import { cn } from '@/lib/utils';
+
+// Dynamic so SSR doesn't try to evaluate the wallet hooks on the server.
+const WalletButton = dynamic(
+  () => import('./WalletButton').then((m) => m.WalletButton),
+  { ssr: false },
+);
 
 const links = [
   { href: '/markets', label: 'Markets' },
@@ -26,8 +28,18 @@ export function Nav() {
   return (
     <header className="sticky top-0 z-40 backdrop-blur-md bg-ink-900/70 border-b border-ink-600">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 h-16 flex items-center justify-between gap-3">
-        <Link href="/" className="flex items-center gap-2 group" onClick={close}>
-          <svg viewBox="0 0 32 32" className="w-7 h-7 text-plasma flex-shrink-0">
+        {/*
+          Logo → always routes to landing page. Applies to both desktop
+          and mobile because this <Link> is rendered once for both layouts.
+          (Obligo needs the same treatment — that's our next patch target.)
+        */}
+        <Link
+          href="/"
+          className="flex items-center gap-2 group transition-opacity hover:opacity-80"
+          onClick={close}
+          aria-label="Foresight home"
+        >
+          <svg viewBox="0 0 32 32" className="w-7 h-7 text-plasma flex-shrink-0" aria-hidden>
             <rect x="2" y="2" width="28" height="28" rx="6" fill="currentColor" />
             <path
               d="M 9 10 L 23 10 M 9 16 L 19 16 M 9 22 L 9 10"
@@ -43,7 +55,7 @@ export function Nav() {
           </span>
         </Link>
 
-        <nav className="hidden md:flex items-center gap-1">
+        <nav className="hidden md:flex items-center gap-1" aria-label="Primary">
           {links.map((l) => {
             const active = pathname?.startsWith(l.href);
             return (
@@ -54,8 +66,9 @@ export function Nav() {
                   'px-3 py-2 text-sm rounded-md transition-colors',
                   active
                     ? 'text-plasma'
-                    : 'text-fog hover:text-chalk hover:bg-ink-700'
+                    : 'text-fog hover:text-chalk hover:bg-ink-700',
                 )}
+                aria-current={active ? 'page' : undefined}
               >
                 {l.label}
               </Link>
@@ -64,7 +77,7 @@ export function Nav() {
         </nav>
 
         <div className="flex items-center gap-2">
-          <WalletMultiButton />
+          <WalletButton />
           <button
             type="button"
             aria-label={mobileOpen ? 'Close menu' : 'Open menu'}
@@ -81,6 +94,7 @@ export function Nav() {
         <nav
           className="md:hidden border-t border-ink-600 bg-ink-900/95 backdrop-blur-md"
           onClick={close}
+          aria-label="Mobile"
         >
           <div className="mx-auto max-w-7xl px-4 py-3 flex flex-col gap-1">
             {links.map((l) => {
@@ -93,7 +107,7 @@ export function Nav() {
                     'px-3 py-3 text-base rounded-md transition-colors',
                     active
                       ? 'text-plasma bg-plasma/5'
-                      : 'text-fog hover:text-chalk hover:bg-ink-700'
+                      : 'text-fog hover:text-chalk hover:bg-ink-700',
                   )}
                 >
                   {l.label}

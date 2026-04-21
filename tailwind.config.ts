@@ -36,7 +36,7 @@ const config: Config = {
       keyframes: {
         marquee: {
           '0%': { transform: 'translateX(0)' },
-          '100%': { transform: 'translateX(-50%)' },
+          '100%': { transform: 'translateX(-25%)' },
         },
         flicker: {
           '0%, 100%': { opacity: '1' },

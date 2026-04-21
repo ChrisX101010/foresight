@@ -88,8 +88,13 @@ export default function MarketsPage() {
           </div>
         ) : (
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-            {filtered.map((m) => (
-              <MarketCard key={m.ticker} market={m} yieldApy={state.yieldInfo.totalApy} />
+            {filtered.map((m, i) => (
+              <MarketCard
+                key={m.ticker}
+                market={m}
+                yieldApy={state.yieldInfo.totalApy}
+                mountDelayMs={i < 12 ? i * 40 : 0}
+              />
             ))}
           </div>
         )}
