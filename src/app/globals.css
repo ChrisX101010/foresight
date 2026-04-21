@@ -144,3 +144,68 @@ html, body {
   font-weight: 400;
   letter-spacing: -0.01em;
 }
+
+/* ────────────────────────────────────────────────────────────────────── */
+/* Hide MetaMask from the Solana wallet-adapter modal.                    */
+/*                                                                        */
+/* MetaMask injects itself as a Solana wallet-standard provider on every  */
+/* dApp, but it's EVM-only — clicking it gives users a confusing error.   */
+/* Until we ship a custom wallet modal, filter it at the DOM layer.       */
+/*                                                                        */
+/* This selector is fragile to @solana/wallet-adapter-react-ui's DOM      */
+/* structure (tested against 0.9.35). Revisit if adapter updates break    */
+/* the selector.                                                          */
+/* ────────────────────────────────────────────────────────────────────── */
+.wallet-adapter-modal-list li:has(button:has(.wallet-adapter-modal-list-more i)),
+.wallet-adapter-modal-list li:has(.wallet-adapter-button[aria-label*="MetaMask" i]),
+.wallet-adapter-modal-list li button:has(span:has-text("MetaMask")) {
+  display: none !important;
+}
+
+/* Fallback selector — walletName attribute match */
+.wallet-adapter-modal-list li [data-wallet-name="MetaMask"],
+.wallet-adapter-modal-list li [data-wallet-name="metamask"] {
+  display: none !important;
+}
+
+/* ────────────────────────────────────────────────────────────────────── */
+/* Hide MetaMask from the Solana wallet-adapter modal.                    */
+/*                                                                        */
+/* MetaMask injects itself as a Solana wallet-standard provider on every  */
+/* dApp but it's EVM-only — clicking it confuses users. Until we ship     */
+/* a custom modal, filter it at the DOM layer.                            */
+/*                                                                        */
+/* Fragile to wallet-adapter-react-ui DOM structure (tested against       */
+/* 0.9.35). If MetaMask starts appearing after an adapter upgrade, the    */
+/* selector below needs revisiting.                                       */
+/* ────────────────────────────────────────────────────────────────────── */
+.wallet-adapter-modal-list li button[aria-label*="MetaMask" i],
+.wallet-adapter-modal-list li:has(> button[aria-label*="MetaMask" i]),
+.wallet-adapter-modal-list li:has(.wallet-adapter-button > .wallet-adapter-button-start-icon + span):has-text("MetaMask") {
+  display: none !important;
+}
+
+/* Fallback: hide by image alt text, which some versions use */
+.wallet-adapter-modal-list li:has(img[alt*="MetaMask" i]) {
+  display: none !important;
+}
+
+/* ────────────────────────────────────────────────────────────────────── */
+/* Market card entrance animation.                                        */
+/* Fires once on mount; refetches do not re-animate because React Query   */
+/* updates props in place without unmounting. This is the correct finance */
+/* UX pattern — animate on appearance, never on update.                   */
+/* ────────────────────────────────────────────────────────────────────── */
+@keyframes market-card-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.animate-market-card-in {
+  animation: market-card-in 360ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+
+/* Honor reduced-motion preferences (a11y requirement). */
+@media (prefers-reduced-motion: reduce) {
+  .animate-market-card-in { animation: none; }
+}

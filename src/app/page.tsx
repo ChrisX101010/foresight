@@ -29,18 +29,30 @@ export default function Landing() {
         <div className="mx-auto max-w-7xl px-4 sm:px-6 pt-20 pb-20 md:pt-32 md:pb-36 relative">
           {/* top marquee — feels like a bloomberg ticker */}
           <div className="absolute top-4 left-0 right-0 overflow-hidden border-y border-ink-600 bg-ink-900/50 py-2">
-            <div className="flex animate-marquee whitespace-nowrap text-xs mono text-fog gap-10">
-              {[
-                'LIVE ⚡ DFlow prediction markets',
-                'LIVE ⚡ Kamino USDC yield',
-                'LIVE ⚡ Solflare wallet',
-                'LIVE ⚡ QuickNode RPC',
-                'LIVE ⚡ DFlow prediction markets',
-                'LIVE ⚡ Kamino USDC yield',
-                'LIVE ⚡ Solflare wallet',
-                'LIVE ⚡ QuickNode RPC',
-              ].map((t, i) => (
-                <span key={i}>{t}</span>
+            {/*
+              Seamless marquee: render the list TWICE as two separate flex
+              groups. CSS animates the outer container by -50% (exact width
+              of one group), so group-2 slides in pixel-perfect where
+              group-1 started. pr-10 on each matches the internal gap-10,
+              making the seam between copies identical to the spacing
+              within a copy — no visible snap-back.
+            */}
+            <div className="flex animate-marquee whitespace-nowrap text-xs mono text-fog">
+              {([0, 1] as const).map((copy) => (
+                <div
+                  key={copy}
+                  aria-hidden={copy === 1}
+                  className="flex shrink-0"
+                >
+                  {[
+                    'LIVE ⚡ DFlow prediction markets',
+                    'LIVE ⚡ Kamino USDC yield',
+                    'LIVE ⚡ Solflare wallet',
+                    'LIVE ⚡ QuickNode RPC',
+                  ].map((t, i) => (
+                    <span key={i} className="mr-10">{t}</span>
+                  ))}
+                </div>
               ))}
             </div>
           </div>

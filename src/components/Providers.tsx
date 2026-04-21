@@ -8,11 +8,12 @@ import { Zap } from 'lucide-react';
 import { SolanaProvider } from './SolanaProvider';
 import { shortAddr } from '@/lib/utils';
 
-// Runs inside SolanaProvider so useWallet is available. Fires a toast
-// on connect/disconnect transitions and surfaces adapter errors.
+// Stable id so repeated connect/disconnect events replace the same toast
+// slot instead of stacking new ones on top.
+const TOAST_ID_WALLET = 'wallet-status';
+
 function WalletStatusWatcher() {
-  const { connected, publicKey, wallet, connecting } = useWallet();
-  const wasConnected = useRef(false);
+  const { connected, publicKey, wallet } = useWallet();
   const lastKey = useRef<string | null>(null);
 
   useEffect(() => {
@@ -20,34 +21,28 @@ function WalletStatusWatcher() {
 
     if (connected && key && key !== lastKey.current) {
       toast.success(`${wallet?.adapter.name ?? 'Wallet'} connected`, {
+        id: TOAST_ID_WALLET,
         description: shortAddr(key, 6),
         icon: <Zap className="w-4 h-4 text-plasma" />,
       });
       lastKey.current = key;
-      wasConnected.current = true;
+      try {
+        sessionStorage.setItem('foresight:wallet-used', '1');
+      } catch {
+        /* private mode — non-fatal */
+      }
+      return;
     }
 
-    if (!connected && wasConnected.current) {
-      toast('Wallet disconnected', { description: 'You can reconnect anytime.' });
-      wasConnected.current = false;
+    if (!connected && lastKey.current) {
+      toast('Wallet disconnected', {
+        id: TOAST_ID_WALLET,
+        description: 'You can reconnect anytime.',
+      });
       lastKey.current = null;
     }
   }, [connected, publicKey, wallet]);
 
-  useEffect(() => {
-    if (!wallet) return;
-    const adapter = wallet.adapter;
-    const onError = (err: Error) => {
-      if (err.name === 'WalletNotReadyError') return;
-      toast.error('Wallet error', { description: err.message });
-    };
-    adapter.on('error', onError);
-    return () => {
-      adapter.off('error', onError);
-    };
-  }, [wallet]);
-
-  void connecting;
   return null;
 }
 
@@ -58,8 +53,9 @@ export function Providers({ children }: { children: ReactNode }) {
         defaultOptions: {
           queries: { refetchOnWindowFocus: false, retry: 1 },
         },
-      })
+      }),
   );
+
   return (
     <QueryClientProvider client={qc}>
       <SolanaProvider>
@@ -67,6 +63,7 @@ export function Providers({ children }: { children: ReactNode }) {
         {children}
         <Toaster
           position="bottom-right"
+          visibleToasts={1}
           toastOptions={{
             style: {
               background: '#10121A',
